@@ -26,11 +26,8 @@ import networkx as nx
 import numpy as np
 
 # ── Optional heavy deps (graceful degradation) ──────────────────────────────
-try:
-    import spacy
-    _NLP_AVAILABLE = True
-except ImportError:
-    _NLP_AVAILABLE = False
+# spaCy disabled — using regex extraction for maximum compatibility
+_NLP_AVAILABLE = False
 
 try:
     from sentence_transformers import SentenceTransformer
@@ -186,22 +183,9 @@ def _page_chunk_fallback(pages: list[dict], chunk_size: int = 5) -> list[dict]:
 
 
 # ── 3. CONCEPT EXTRACTION ─────────────────────────────────────────────────────
-def load_nlp_model() -> Optional[object]:
-    """
-    Load spaCy model (en_core_web_sm). Returns None if unavailable.
-    Falls back to regex-based extraction.
-    """
-    if not _NLP_AVAILABLE:
-        return None
-    try:
-        return spacy.load("en_core_web_sm")
-    except OSError:
-        try:
-            from spacy.cli import download
-            download("en_core_web_sm")
-            return spacy.load("en_core_web_sm")
-        except Exception:
-            return None
+def load_nlp_model():
+    """spaCy disabled — regex extraction used instead."""
+    return None
 
 
 def extract_concepts(section: dict, nlp=None) -> list[str]:
@@ -216,23 +200,8 @@ def extract_concepts(section: dict, nlp=None) -> list[str]:
 
 
 def _spacy_concepts(text: str, nlp) -> list[str]:
-    """Extract noun chunks and named entities using spaCy."""
-    # Process in 3-sentence windows to handle large texts
-    doc = nlp(text[:4000])  # spaCy soft limit for sm model
-    stopwords = nlp.Defaults.stop_words
-
-    candidates: list[str] = []
-    for chunk in doc.noun_chunks:
-        lemma = chunk.root.lemma_.lower()
-        if lemma not in stopwords and len(lemma) > 2 and lemma.isalpha():
-            candidates.append(chunk.text.lower().strip())
-
-    for ent in doc.ents:
-        if ent.label_ in {"ORG", "PRODUCT", "WORK_OF_ART", "LAW", "EVENT", "NORP"}:
-            candidates.append(ent.text.lower().strip())
-
-    freq = Counter(candidates)
-    return [term for term, _ in freq.most_common(TOP_CONCEPTS_PER_SECTION)]
+    """Disabled — falls through to regex."""
+    return _regex_concepts(text)
 
 
 def _regex_concepts(text: str) -> list[str]:
